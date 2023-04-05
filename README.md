@@ -1,0 +1,2 @@
+# projektarbeit-chatgpt-python
+README :)
