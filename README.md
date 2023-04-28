@@ -1,2 +1,1 @@
-# projektarbeit-chatgpt-python
-README :)
+[OneNote](https://studthowlde-my.sharepoint.com/:o:/g/personal/philipp_kuehne_stud_th-owl_de/EhrIo08CtLNBrEe_FqsODOUBJoaLbdrlAOP85tF1ox-lmA?e=ziZ3Ll)
