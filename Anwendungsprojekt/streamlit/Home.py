@@ -30,7 +30,7 @@ def get_diagramms():
     return fig
 
 
-st.set_page_config(page_title="Wetter App", page_icon="🌤️")
+st.set_page_config(page_title="Wetter App", page_icon="🌤️")#, layout='wide')
 
 st.title("Wetter App")
 
