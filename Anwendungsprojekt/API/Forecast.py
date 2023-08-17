@@ -14,20 +14,16 @@ try:
 
         min_temps = []
         max_temps = []
-        current_temps = []
 
         for forecast in forecast_list[:5]:  # Extract temperatures for the next 5 days
             min_temp = forecast['main']['temp_min']
             max_temp = forecast['main']['temp_max']
-            current_temp = forecast['main']['temp']
 
             min_temps.append(min_temp)
             max_temps.append(max_temp)
-            current_temps.append(current_temp)
 
         print(f"Min Temperatures: {min_temps}")
         print(f"Max Temperatures: {max_temps}")
-        print(f"Current Temperatures: {current_temps}")
 
     else:
         print(f"Error: {data['message']}")
