@@ -2,13 +2,17 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import time
+from datetime import date, timedelta
 
 @st.cache_data
 def get_data():
-    daten = ["Heute", "Morgen", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+    heutiges_datum = date.today()
+    alle_daten = [heutiges_datum + timedelta(days=i) for i in range(6)]
+    daten = [datum.strftime("%d.%m.%Y") for datum in alle_daten]
 
     return pd.DataFrame({
-        'Datum': daten,
+        'Tag': daten,
         'min. Temp.': [np.random.randint(-15, 20) for _ in range(len(daten))],
         'max. Temp.': [np.random.randint(20, 35) for _ in range(len(daten))]
         })
@@ -32,12 +36,11 @@ def get_diagramms():
 
 st.set_page_config(page_title="Wetter App", page_icon="🌤️")#, layout='wide')
 
-st.title("Wetter App")
-
 st.sidebar.header("Parameter")
 
 with st.sidebar.expander("Wetterdaten auswählen", expanded=True):
     city = st.text_input("Stadt")
+    #chose_city = st.button("Stadt auswählen")
     
     st.write("Placeholder")
 
@@ -46,32 +49,32 @@ with st.sidebar.expander("Einstellungen", expanded=True):
     
     st.write("Placeholder")
    
-
-if city != "":
+#if chose_city:
+if city:
+    st.title(f"Wetter in {city}")
+    st.write("Placeholder (Wetter-Text)")
+    #getdata(city)
     col1, col2 = st.columns(2)
 
     with col1:
-        st.write("Placeholder (Tag, Min., Max.)")
         df = get_data()
-        
         match unit:
             case "°C":
-                st.table(df)
+                st.dataframe(df, hide_index=True)
             case "°F":
                 df['min. Temp.'] = df['min. Temp.'].apply(lambda x: int((x * 9/5) + 32))
                 df['max. Temp.'] = df['max. Temp.'].apply(lambda x: int((x * 9/5) + 32))
-                st.table(df)
+                st.dataframe(df, hide_index=True)
             case "°K":
                 df['min. Temp.'] = df['min. Temp.'].apply(lambda x: int(x + 273.15))
                 df['max. Temp.'] = df['max. Temp.'].apply(lambda x: int(x + 273.15))
-                st.table(df)
+                st.dataframe(df, hide_index=True)
 
     with col2:
-        st.write("Placeholder (Diagramme)")
-
         st.pyplot(get_diagramms())
         st.pyplot(get_diagramms())
         st.pyplot(get_diagramms())
 
 else:
+    st.title("WetterApp")
     st.error("Bitte geben Sie eine Stadt an!")
