@@ -26,7 +26,7 @@ try:
         print(f"Current Humidity in {city_name}: {current_humidity}%")
         print(f"Weather Description in {city_name}: {weather_description}")
 
-Using the weather icon code to construct the icon URL
+#Using the weather icon code to construct the icon URL
         icon_url = f"http://openweathermap.org/img/w/%7Bweather_icon%7D.png"
         print(f"Weather Icon URL: {icon_url}")
 
