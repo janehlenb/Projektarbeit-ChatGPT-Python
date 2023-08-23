@@ -1,14 +1,67 @@
 import streamlit as st
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from datetime import date, timedelta, datetime
-import plotly.graph_objs as go
 import plotly.express as px
 import requests
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
 
+# TODO: Daten in Tabelle einfügen (Calculate.py)
+# TODO: Metric testen (https://docs.streamlit.io/library/api-reference/session-state)
+
+
+def convert_wind_speed(wind_speeds_mps, target_unit):
+    match target_unit:
+        case "km/h":
+            return round(wind_speeds_mps * 3.6, 1)
+        case "mph":
+            return round(wind_speeds_mps * 2.23694, 1)
+        case "knots":
+            return round(wind_speeds_mps * 1.94384, 1)
+        case "Bft":
+            beaufort_scale = [
+                (0.0, 0),
+                (0.3, 0),
+                (1.6, 1),
+                (3.4, 2),
+                (5.5, 3),
+                (8.0, 4),
+                (10.8, 5),
+                (13.9, 6),
+                (17.2, 7),
+                (20.8, 8),
+                (24.5, 9),
+                (28.5, 10),
+                (32.7, 11)
+            ]
+
+            for cutoff, description in beaufort_scale:
+                for wind in wind_speeds_mps:
+                    if wind < cutoff:
+                        wind = description
+                        break
+                    else:
+                        wind = 12
+                
+            return wind_speeds_mps
+
+@st.cache_data
+def get_weatherData(city):
+    response = requests.get(f"")
+    data = response.json()
+    
+    return min_temp, max_temp, avg_temp, avg_wind, max_gusts
+
+@st.cache_data
+def get_currentWeatherData(data):
+    current_temp = data['main']['temp']
+    current_wind_speed = data['wind']['speed']
+    current_humidity = data['main']['humidity']  # Extract humidity
+    weather_description = data['weather'][0]['description']  # Extract weather description
+    weather_icon = data['weather'][0]['icon']
+    
+    return current_temp, current_wind_speed, current_humidity, weather_description, weather_icon
 
 @st.cache_data # Bei richtigen Daten entfernen
 def get_table():
@@ -17,16 +70,17 @@ def get_table():
     alle_daten = [heutiges_datum + timedelta(days=i) for i in range(6)]
     daten = [datum.strftime("%d.%m.%Y") for datum in alle_daten]
     
-    # Temperaturdaten erhalten
-    # ...
+    # Temperatur- und Winddaten erhalten
+    min_temp, max_temp, avg_temp, avg_wind, max_gusts = get_weatherData(city)
     
     # Daten ausgeben
     return pd.DataFrame({
         'Tag': daten,
-        'min. Temp.': [np.random.randint(-15, 20) for _ in range(len(daten))],
-        'max. Temp.': [np.random.randint(20, 35) for _ in range(len(daten))],
-        'Ø Temp.': [np.random.randint(0, 15) for _ in range(len(daten))],
-        'Ø Wind': [np.random.randint(0, 15) for _ in range(len(daten))],
+        'min. Temp.': min_temp,
+        'max. Temp.': max_temp,
+        'Ø Temp.': avg_temp,
+        'Ø Wind': avg_wind,
+        'max. Böen': max_gusts,
         })
 
 def get_diagramms_humid_temp(url, type, only_tomorrow=False):
@@ -59,7 +113,11 @@ def get_diagramms_humid_temp(url, type, only_tomorrow=False):
     if not only_tomorrow:
         times = [datetime.utcfromtimestamp(ts).strftime('%d.%m.   %H:%M') for ts in times]
     
-    return px.line(x=times, y=values, color_discrete_sequence=['orange'], height=300)
+    match type:
+        case 'temp':
+            return px.line(x=times, y=values, color_discrete_sequence=['red'], height=300)
+        case 'humidity':
+            return px.line(x=times, y=values, color_discrete_sequence=['blue'], height=300)
 
 def get_diagramms_states():
     response = requests.get(url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&lang=de&cnt=8&appid={API_KEY}")
@@ -83,7 +141,7 @@ def get_diagramms_states():
     labels = list(weather_counts.keys())
     values = list(weather_counts.values())
     
-    fig = px.pie(values=values, names=labels, color_discrete_sequence=px.colors.sequential.Oranges_r, height=300)
+    fig = px.pie(values=values, names=labels, color_discrete_sequence=px.colors.sequential.Blues_r, height=300)
     fig.update_layout(title_text=f'Verteilung der Wetterzustände morgen in {city}')
     st.plotly_chart(fig, use_container_width=True)
 
@@ -103,10 +161,10 @@ def get_diagramms_comparison():
         temperatures.append(temperature)
         humidities.append(humidity)
     
-    fig = px.bar(x=st.session_state.cities_comparison_diagramm, y=temperatures, color_discrete_sequence=['orange'], height=300)
+    fig = px.bar(x=st.session_state.cities_comparison_diagramm, y=temperatures, color_discrete_sequence=['red'], height=300)
     fig.update_xaxes(title_text='Städte')
     fig.update_yaxes(title_text='Temperatur (°C)')
-    fig.update_layout(title_text=f'Vergleich von Temperatur und Luftfeuchtigkeit')
+    fig.update_layout(title_text=f'Vergleich von Temperatur')
     st.plotly_chart(fig, use_container_width=True)
 
 def get_diagramms():
@@ -155,49 +213,73 @@ with st.sidebar.expander("Wetterdaten auswählen", expanded=True):
 
 with st.sidebar.expander("Einstellungen", expanded=True):
     temp_unit = st.radio("Temperatur-Einheit", ("°C", "°F", "°K"))
-    wind_unit = st.radio("Wind-Einheit", ("km/h", "m/s", "mph"))
+    wind_unit = st.radio("Wind-Einheit", ("m/s", "km/h", "mph", "knt", "Bft"))
    
 #if chose_city:
 if city:
-    st.title(f"Wetter in {city}")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write("Placeholder (Wetter-Text) ")
+    # Aktuelle Wetterdaten abrufen und testen ob Stadt verfügbar ist
+    response = requests.get(f'http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric')
+    if response.status_code == 200:
+        data = response.json()
+        current_temp, current_wind_speed, current_humidity, weather_description, weather_icon = get_currentWeatherData(data)
         
-        # Wetterdaten anzeigen
-        df = get_table()
-        match temp_unit:
-            #case "°C":
-            #    st.dataframe(df, hide_index=True)
-            case "°F":
-                df['min. Temp.'] = df['min. Temp.'].apply(lambda x: int((x * 9/5) + 32))
-                df['max. Temp.'] = df['max. Temp.'].apply(lambda x: int((x * 9/5) + 32))
-                df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: int((x * 9/5) + 32))
-            case "°K":
-                df['min. Temp.'] = df['min. Temp.'].apply(lambda x: int(x + 273.15))
-                df['max. Temp.'] = df['max. Temp.'].apply(lambda x: int(x + 273.15))
-                df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: int(x + 273.15))
+        st.title(f"Wetter in {city}")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
+            st.write(weather_description)
             
-        match wind_unit:
-            #case "km/h":
-            #    st.dataframe(df, hide_index=True)
-            case "m/s":
-                df['Ø Wind'] = df['Ø Wind'].apply(lambda x: round(x * 0.277778, 2))
-            case "mph":
-                df['Ø Wind'] = df['Ø Wind'].apply(lambda x: round(x * 0.621371, 2))
-
-        st.dataframe(df, hide_index=True, width=600)
+            st.write("Aktuelle Wetterdaten:")
+            col11,col12, col13 = st.columns(3)
+            with col11:
+                metric_temp = st.metric(label="Temperatur", value=f"{current_temp:.1f} °C")
+            with col12:
+                metric_wind = st.metric(label="Windgeschwindigkeit", value=f"{current_wind_speed:.1f} m/s")
+            with col13:
+                metric_humidity = st.metric(label="Luftfeuchtigkeit", value=f"{current_humidity} %")
+            
+            # Wetterdaten anzeigen
+            df = get_table()
+            match temp_unit:
+                case "°F":
+                    df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
+                    df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
+                    df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
+                case "°K":
+                    df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round(x + 273.15, 2))
+                    df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round(x + 273.15, 2))
+                    df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round(x + 273.15, 2))
+                
+            match wind_unit:
+                case "km/h":
+                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "km/h")
+                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "km/h")
+                case "mph":
+                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "mph")
+                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "mph")
+                case "knt":
+                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "knt")
+                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "knt")
+                case "Bft":
+                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "Bft")
+                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "Bft")
+                    
+            st.dataframe(df, hide_index=True, width=600)
+            
+            # Wetterzustände morgen anzeigen
+            get_diagramms_states()
+            
+        with col2:
+            # Diagramme anzeigen
+            get_diagramms()
+            
+            if show_comparison and st.session_state.cities_comparison_diagramm:
+                get_diagramms_comparison() 
+                
+    else:
+        st.title("WetterApp")
+        st.error(f"Die Stadt **{city}** konnte nicht gefunden werden!")
         
-        # Wetterzustände morgen anzeigen
-        get_diagramms_states()
-         
-    with col2:
-        # Diagramme anzeigen
-        get_diagramms()
-        
-        if show_comparison and st.session_state.cities_comparison_diagramm:
-            get_diagramms_comparison()
-
 else:
     st.title("WetterApp")
     st.error("Bitte geben Sie eine Stadt an!")
