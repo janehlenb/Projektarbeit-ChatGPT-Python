@@ -63,25 +63,25 @@ def get_currentWeatherData(data):
     
     return current_temp, current_wind_speed, current_humidity, weather_description, weather_icon
 
-@st.cache_data # Bei richtigen Daten entfernen
-def get_table():
-    # Daten bestimmen
-    heutiges_datum = date.today()
-    alle_daten = [heutiges_datum + timedelta(days=i) for i in range(6)]
-    daten = [datum.strftime("%d.%m.%Y") for datum in alle_daten]
+# @st.cache_data # Bei richtigen Daten entfernen
+# def get_table():
+#     # Daten bestimmen
+#     heutiges_datum = date.today()
+#     alle_daten = [heutiges_datum + timedelta(days=i) for i in range(6)]
+#     daten = [datum.strftime("%d.%m.%Y") for datum in alle_daten]
     
-    # Temperatur- und Winddaten erhalten
-    min_temp, max_temp, avg_temp, avg_wind, max_gusts = get_weatherData(city)
+#     # Temperatur- und Winddaten erhalten
+#     min_temp, max_temp, avg_temp, avg_wind, max_gusts = get_weatherData(city)
     
-    # Daten ausgeben
-    return pd.DataFrame({
-        'Tag': daten,
-        'min. Temp.': min_temp,
-        'max. Temp.': max_temp,
-        'Ø Temp.': avg_temp,
-        'Ø Wind': avg_wind,
-        'max. Böen': max_gusts,
-        })
+#     # Daten ausgeben
+#     return pd.DataFrame({
+#         'Tag': daten,
+#         'min. Temp.': min_temp,
+#         'max. Temp.': max_temp,
+#         'Ø Temp.': avg_temp,
+#         'Ø Wind': avg_wind,
+#         'max. Böen': max_gusts,
+#         })
 
 def get_diagramms_humid_temp(url, type, only_tomorrow=False):
     response = requests.get(url)
@@ -239,32 +239,32 @@ if city:
                 metric_humidity = st.metric(label="Luftfeuchtigkeit", value=f"{current_humidity} %")
             
             # Wetterdaten anzeigen
-            df = get_table()
-            match temp_unit:
-                case "°F":
-                    df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
-                    df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
-                    df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
-                case "°K":
-                    df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round(x + 273.15, 2))
-                    df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round(x + 273.15, 2))
-                    df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round(x + 273.15, 2))
+            # df = get_table()
+            # match temp_unit:
+            #     case "°F":
+            #         df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
+            #         df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
+            #         df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
+            #     case "°K":
+            #         df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round(x + 273.15, 2))
+            #         df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round(x + 273.15, 2))
+            #         df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round(x + 273.15, 2))
                 
-            match wind_unit:
-                case "km/h":
-                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "km/h")
-                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "km/h")
-                case "mph":
-                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "mph")
-                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "mph")
-                case "knt":
-                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "knt")
-                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "knt")
-                case "Bft":
-                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "Bft")
-                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "Bft")
+            # match wind_unit:
+            #     case "km/h":
+            #         df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "km/h")
+            #         df['max. Böen'] = convert_wind_speed(df['max. Böen'], "km/h")
+            #     case "mph":
+            #         df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "mph")
+            #         df['max. Böen'] = convert_wind_speed(df['max. Böen'], "mph")
+            #     case "knt":
+            #         df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "knt")
+            #         df['max. Böen'] = convert_wind_speed(df['max. Böen'], "knt")
+            #     case "Bft":
+            #         df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "Bft")
+            #         df['max. Böen'] = convert_wind_speed(df['max. Böen'], "Bft")
                     
-            st.dataframe(df, hide_index=True, width=600)
+            # st.dataframe(df, hide_index=True, width=600)
             
             # Wetterzustände morgen anzeigen
             get_diagramms_states()
