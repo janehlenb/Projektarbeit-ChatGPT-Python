@@ -3,12 +3,14 @@ import pandas as pd
 import numpy as np
 from datetime import date, timedelta, datetime
 import plotly.express as px
+import pydeck as pdk
 import requests
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
 
-# TODO: Daten in Tabelle einfügen (Calculate.py)
+# TODO: Daten in Tabelle einfügen (Calculate.py) (API-Request fehlt)
 # TODO: Metric testen (https://docs.streamlit.io/library/api-reference/session-state)
+# TODO: Beschreibung? (API-Request fehlt)
 
 
 def convert_wind_speed(wind_speeds_mps, target_unit):
@@ -17,7 +19,7 @@ def convert_wind_speed(wind_speeds_mps, target_unit):
             return round(wind_speeds_mps * 3.6, 1)
         case "mph":
             return round(wind_speeds_mps * 2.23694, 1)
-        case "knots":
+        case "knt":
             return round(wind_speeds_mps * 1.94384, 1)
         case "Bft":
             beaufort_scale = [
@@ -36,22 +38,41 @@ def convert_wind_speed(wind_speeds_mps, target_unit):
                 (32.7, 11)
             ]
 
-            for cutoff, description in beaufort_scale:
-                for wind in wind_speeds_mps:
+            bft_speeds = []
+            for wind in wind_speeds_mps:
+                bft = None
+                for cutoff, bft_value in beaufort_scale:
                     if wind < cutoff:
-                        wind = description
+                        bft = bft_value
                         break
-                    else:
-                        wind = 12
+                if bft == None:
+                    bft = '12+'
+                bft_speeds.append(bft)
                 
-            return wind_speeds_mps
+            return bft_speeds
 
 @st.cache_data
-def get_weatherData(city):
+def get_weatherData():
     response = requests.get(f"")
     data = response.json()
     
+    min_temp = []
+    max_temp = []
+    avg_temp = []
+    avg_wind = []
+    max_gusts = []
+    
     return min_temp, max_temp, avg_temp, avg_wind, max_gusts
+
+@st.cache_data
+def get_weatherMap():
+    response = requests.get(f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}")
+    data = response.json()
+        
+    latitude = data[0]['lat']
+    longitude = data[0]['lon']
+        
+    st.map(data={'LATITUDE': [latitude], 'LONGITUDE': [longitude]}, zoom=12)
 
 @st.cache_data
 def get_currentWeatherData(data):
@@ -63,25 +84,30 @@ def get_currentWeatherData(data):
     
     return current_temp, current_wind_speed, current_humidity, weather_description, weather_icon
 
-# @st.cache_data # Bei richtigen Daten entfernen
-# def get_table():
-#     # Daten bestimmen
-#     heutiges_datum = date.today()
-#     alle_daten = [heutiges_datum + timedelta(days=i) for i in range(6)]
-#     daten = [datum.strftime("%d.%m.%Y") for datum in alle_daten]
+@st.cache_data # Bei richtigen Daten entfernen
+def get_table():
+    # Daten bestimmen
+    heutiges_datum = date.today()
+    alle_daten = [heutiges_datum + timedelta(days=i) for i in range(6)]
+    daten = [datum.strftime("%d.%m.%Y") for datum in alle_daten]
     
-#     # Temperatur- und Winddaten erhalten
-#     min_temp, max_temp, avg_temp, avg_wind, max_gusts = get_weatherData(city)
+    # Temperatur- und Winddaten erhalten
+    #min_temp, max_temp, avg_temp, avg_wind, max_gusts = get_weatherData(city)
     
-#     # Daten ausgeben
-#     return pd.DataFrame({
-#         'Tag': daten,
-#         'min. Temp.': min_temp,
-#         'max. Temp.': max_temp,
-#         'Ø Temp.': avg_temp,
-#         'Ø Wind': avg_wind,
-#         'max. Böen': max_gusts,
-#         })
+    # Daten ausgeben
+    return pd.DataFrame({
+        'Tag': daten,
+        #'min. Temp.': min_temp,
+        #'max. Temp.': max_temp,
+        #'Ø Temp.': avg_temp,
+        #'Ø Wind': avg_wind,
+        #'max. Böen': max_gusts,
+        'min. Temp.': [np.random.randint(-15, 20) for _ in range(len(daten))],
+        'max. Temp.': [np.random.randint(20, 35) for _ in range(len(daten))],
+        'Ø Temp.': [np.random.randint(0, 15) for _ in range(len(daten))],
+        'Ø Wind': [np.random.randint(0, 15) for _ in range(len(daten))],
+        'max. Böen': [np.random.randint(0, 15) for _ in range(len(daten))]
+        })
 
 def get_diagramms_humid_temp(url, type, only_tomorrow=False):
     response = requests.get(url)
@@ -168,8 +194,9 @@ def get_diagramms_comparison():
     st.plotly_chart(fig, use_container_width=True)
 
 def get_diagramms():
+    url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&lang=de&appid={API_KEY}"
+    
     # Feuchtigkeitsverlauf morgen
-    url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&lang=de&cnt=8&appid={API_KEY}"
     fig = get_diagramms_humid_temp(url, 'humidity', only_tomorrow=True)
     fig.update_xaxes(title_text='Uhrzeit')
     fig.update_yaxes(title_text='Luftfeuchtigkeit (%)')
@@ -177,7 +204,6 @@ def get_diagramms():
     st.plotly_chart(fig, use_container_width=True)
 
     # Temperaturverlauf morgen
-    url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&lang=de&cnt=8&appid={API_KEY}"
     fig = get_diagramms_humid_temp(url, 'temp', only_tomorrow=True)
     fig.update_xaxes(title_text='Uhrzeit')
     fig.update_yaxes(title_text='Temperatur (°C)')
@@ -185,11 +211,10 @@ def get_diagramms():
     st.plotly_chart(fig, use_container_width=True)
     
     # Temperaturverlauf 5 Tage
-    url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&lang=de&appid={API_KEY}"
     fig = get_diagramms_humid_temp(url, 'temp')
     fig.update_xaxes(title_text='Datum und Uhrzeit')
     fig.update_yaxes(title_text='Temperatur (°C)')
-    fig.update_layout(title_text=f'5-Tage-Temperaturvorhersage in {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
+    fig.update_layout(title_text=f'5-Tage-Temperaturvorhersage für {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -226,6 +251,13 @@ if city:
         st.title(f"Wetter in {city}")
         col1, col2 = st.columns(2)
         with col1:
+            #col11, col12 = st.columns(2)
+            #with col11:
+            #    # Karte anzeigen
+            #    get_weatherMap()
+            #with col12:
+            #    st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
+            #    st.write(weather_description)
             st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
             st.write(weather_description)
             
@@ -239,33 +271,34 @@ if city:
                 metric_humidity = st.metric(label="Luftfeuchtigkeit", value=f"{current_humidity} %")
             
             # Wetterdaten anzeigen
-            # df = get_table()
-            # match temp_unit:
-            #     case "°F":
-            #         df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
-            #         df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
-            #         df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
-            #     case "°K":
-            #         df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round(x + 273.15, 2))
-            #         df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round(x + 273.15, 2))
-            #         df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round(x + 273.15, 2))
+            df = get_table()
+            match temp_unit:
+                case "°F":
+                    df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
+                    df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
+                    df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
+                case "°K":
+                    df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round(x + 273.15, 2))
+                    df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round(x + 273.15, 2))
+                    df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round(x + 273.15, 2))
                 
-            # match wind_unit:
-            #     case "km/h":
-            #         df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "km/h")
-            #         df['max. Böen'] = convert_wind_speed(df['max. Böen'], "km/h")
-            #     case "mph":
-            #         df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "mph")
-            #         df['max. Böen'] = convert_wind_speed(df['max. Böen'], "mph")
-            #     case "knt":
-            #         df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "knt")
-            #         df['max. Böen'] = convert_wind_speed(df['max. Böen'], "knt")
-            #     case "Bft":
-            #         df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "Bft")
-            #         df['max. Böen'] = convert_wind_speed(df['max. Böen'], "Bft")
+            match wind_unit:
+                case "km/h":
+                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "km/h")
+                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "km/h")
+                case "mph":
+                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "mph")
+                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "mph")
+                case "knt":
+                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "knt")
+                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "knt")
+                case "Bft":
+                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "Bft")
+                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "Bft")
                     
-            # st.dataframe(df, hide_index=True, width=600)
-            
+            st.warning("Die Werte in der Tabelle sind zufällig generiert!")
+            st.dataframe(df, hide_index=True, width=600, use_container_width=True)
+                  
             # Wetterzustände morgen anzeigen
             get_diagramms_states()
             
