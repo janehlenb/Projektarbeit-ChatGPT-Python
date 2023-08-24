@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from datetime import date, timedelta, datetime
 import plotly.express as px
-import pydeck as pdk
 import requests
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
@@ -13,8 +12,19 @@ API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
 # TODO: Beschreibung? (API-Request fehlt)
 
 
+def convert_temp(temperatures, target_unit):
+    match target_unit:
+        case "°C":
+            return temperatures
+        case "°F":
+            return [(temp * 9/5) + 32 for temp in temperatures]
+        case "°K":
+            return [temp + 273.15 for temp in temperatures]
+
 def convert_wind_speed(wind_speeds_mps, target_unit):
     match target_unit:
+        case "m/s":
+            return wind_speeds_mps
         case "km/h":
             return round(wind_speeds_mps * 3.6, 1)
         case "mph":
@@ -87,9 +97,7 @@ def get_currentWeatherData(data):
 @st.cache_data # Bei richtigen Daten entfernen
 def get_table():
     # Daten bestimmen
-    heutiges_datum = date.today()
-    alle_daten = [heutiges_datum + timedelta(days=i) for i in range(6)]
-    daten = [datum.strftime("%d.%m.%Y") for datum in alle_daten]
+    daten = [date.today() + timedelta(days=i) for i in range(6)]
     
     # Temperatur- und Winddaten erhalten
     #min_temp, max_temp, avg_temp, avg_wind, max_gusts = get_weatherData(city)
@@ -107,9 +115,10 @@ def get_table():
         'Ø Temp.': [np.random.randint(0, 15) for _ in range(len(daten))],
         'Ø Wind': [np.random.randint(0, 15) for _ in range(len(daten))],
         'max. Böen': [np.random.randint(0, 15) for _ in range(len(daten))]
-        })
+    })
 
-def get_diagramms_humid_temp(url, type, only_tomorrow=False):
+def get_diagramms_humid_temp(type, only_tomorrow=False):
+    url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&lang=de&appid={API_KEY}"
     response = requests.get(url)
     data = response.json()
     
@@ -122,7 +131,6 @@ def get_diagramms_humid_temp(url, type, only_tomorrow=False):
     
     for entry in data['list']:
         timestamp = entry['dt']
-
         if only_tomorrow:
             entry_date = datetime.utcfromtimestamp(timestamp).date()
             if entry_date == tomorrow:
@@ -141,9 +149,24 @@ def get_diagramms_humid_temp(url, type, only_tomorrow=False):
     
     match type:
         case 'temp':
-            return px.line(x=times, y=values, color_discrete_sequence=['red'], height=300)
+            fig = px.line(x=times, y=values, color_discrete_sequence=['red'], height=300)
+            fig.update_yaxes(title_text='Temperatur (°C)')
+            if only_tomorrow:
+                fig.update_xaxes(title_text='Uhrzeit')
+                fig.update_layout(title_text=f'Temperaturverlauf morgen in {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
+            else:
+                fig.update_xaxes(title_text='Datum und Uhrzeit')
+                fig.update_layout(title_text=f'5-Tage-Temperaturvorhersage für {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))  
         case 'humidity':
-            return px.line(x=times, y=values, color_discrete_sequence=['blue'], height=300)
+            fig = px.line(x=times, y=values, color_discrete_sequence=['blue'], height=300)
+            fig.update_yaxes(title_text='Luftfeuchtigkeit (%)')
+            if only_tomorrow:
+                fig.update_xaxes(title_text='Uhrzeit')
+                fig.update_layout(title_text=f'Luftfeuchtigkeitsverlauf morgen in {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
+            else:
+                fig.update_xaxes(title_text='Datum und Uhrzeit')
+        
+    return fig
 
 def get_diagramms_states():
     response = requests.get(url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&lang=de&cnt=8&appid={API_KEY}")
@@ -192,31 +215,6 @@ def get_diagramms_comparison():
     fig.update_yaxes(title_text='Temperatur (°C)')
     fig.update_layout(title_text=f'Vergleich von Temperatur')
     st.plotly_chart(fig, use_container_width=True)
-
-def get_diagramms():
-    url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&lang=de&appid={API_KEY}"
-    
-    # Feuchtigkeitsverlauf morgen
-    fig = get_diagramms_humid_temp(url, 'humidity', only_tomorrow=True)
-    fig.update_xaxes(title_text='Uhrzeit')
-    fig.update_yaxes(title_text='Luftfeuchtigkeit (%)')
-    fig.update_layout(title_text=f'Luftfeuchtigkeitsverlauf morgen in {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Temperaturverlauf morgen
-    fig = get_diagramms_humid_temp(url, 'temp', only_tomorrow=True)
-    fig.update_xaxes(title_text='Uhrzeit')
-    fig.update_yaxes(title_text='Temperatur (°C)')
-    fig.update_layout(title_text=f'Temperaturverlauf morgen in {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Temperaturverlauf 5 Tage
-    fig = get_diagramms_humid_temp(url, 'temp')
-    fig.update_xaxes(title_text='Datum und Uhrzeit')
-    fig.update_yaxes(title_text='Temperatur (°C)')
-    fig.update_layout(title_text=f'5-Tage-Temperaturvorhersage für {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
-    st.plotly_chart(fig, use_container_width=True)
-
 
 st.set_page_config(page_title="Wetter App", page_icon="🌤️", layout='wide')
 st.sidebar.header("Parameter")
@@ -272,39 +270,47 @@ if city:
             
             # Wetterdaten anzeigen
             df = get_table()
-            match temp_unit:
-                case "°F":
-                    df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
-                    df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
-                    df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round((x * 9/5) + 32, 1))
-                case "°K":
-                    df['min. Temp.'] = df['min. Temp.'].apply(lambda x: round(x + 273.15, 2))
-                    df['max. Temp.'] = df['max. Temp.'].apply(lambda x: round(x + 273.15, 2))
-                    df['Ø Temp.'] = df['Ø Temp.'].apply(lambda x: round(x + 273.15, 2))
-                
-            match wind_unit:
-                case "km/h":
-                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "km/h")
-                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "km/h")
-                case "mph":
-                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "mph")
-                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "mph")
-                case "knt":
-                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "knt")
-                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "knt")
-                case "Bft":
-                    df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], "Bft")
-                    df['max. Böen'] = convert_wind_speed(df['max. Böen'], "Bft")
-                    
+            df['min. Temp.'] = convert_temp(df['min. Temp.'], temp_unit)
+            df['max. Temp.'] = convert_temp(df['max. Temp.'], temp_unit)
+            df['Ø Temp.'] = convert_temp(df['Ø Temp.'], temp_unit)
+            df['Ø Wind'] = convert_wind_speed(df['Ø Wind'], wind_unit)
+            df['max. Böen'] = convert_wind_speed(df['max. Böen'], wind_unit)
+            
             st.warning("Die Werte in der Tabelle sind zufällig generiert!")
-            st.dataframe(df, hide_index=True, width=600, use_container_width=True)
+            st.dataframe(df,
+                        column_config={
+                            "Tag": st.column_config.DateColumn(
+                                format="DD.MM.YYYY",
+                            ),
+                            "min. Temp.": st.column_config.NumberColumn(
+                                format=f"%d {temp_unit}" if temp_unit == "°C" else f"%.1f {temp_unit}" if temp_unit != "°K" else f"%.2f {temp_unit}",
+                            ),
+                            "max. Temp.": st.column_config.NumberColumn(
+                                format=f"%d {temp_unit}" if temp_unit == "°C" else f"%.1f {temp_unit}" if temp_unit != "°K" else f"%.2f {temp_unit}",
+                            ),
+                            "Ø Temp.": st.column_config.NumberColumn(
+                                format=f"%d {temp_unit}" if temp_unit == "°C" else f"%.1f {temp_unit}" if temp_unit != "°K" else f"%.2f {temp_unit}",
+                            ),
+                            "Ø Wind": st.column_config.NumberColumn(
+                                format=f"%d {wind_unit}" if wind_unit == "Bft" or wind_unit == "m/s" else f"%.1f {wind_unit}",
+                            ),
+                            "max. Böen": st.column_config.NumberColumn(
+                                format=f"%d {wind_unit}" if wind_unit == "Bft" or wind_unit == "m/s" else f"%.1f {wind_unit}",
+                            ),
+                            },
+                        hide_index=True,
+                        width=600,
+                        use_container_width=True
+            )
                   
             # Wetterzustände morgen anzeigen
             get_diagramms_states()
             
         with col2:
             # Diagramme anzeigen
-            get_diagramms()
+            st.plotly_chart(get_diagramms_humid_temp('humidity', only_tomorrow=True), use_container_width=True)
+            st.plotly_chart(get_diagramms_humid_temp('temp', only_tomorrow=True), use_container_width=True)
+            st.plotly_chart(get_diagramms_humid_temp('temp'), use_container_width=True)
             
             if show_comparison and st.session_state.cities_comparison_diagramm:
                 get_diagramms_comparison() 
