@@ -8,7 +8,7 @@ api_key = "8458a13ebaeba1acef15ef61c32b8d4e"
 city = "Berlin"
 
 # Die Basis-URL für die OpenWeatherMap API
-forecast_url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={api_key}&units=metric"
+forecast_url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={api_key}&units=metric&lang=de"
 
 # Listen für die einzelnen Daten
 timestamps = []
@@ -71,7 +71,7 @@ for entry in data['list']:
 min_temps_per_day.append(min_temp_day)
 max_temps_per_day.append(max_temp_day)
 
-base_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+base_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric&lang=de"
 
 # API-Anfrage senden
 response = requests.get(base_url)
