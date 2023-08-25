@@ -20,7 +20,7 @@ wind_gusts = []
 min_temps_per_day = []
 max_temps_per_day = []
 icon_urls_per_day = []
-
+max_wind_gusts_per_day = []
 
 
 # Heutiges Datum
@@ -34,6 +34,7 @@ data = response.json()
 current_day = None
 min_temp_day = float('inf')
 max_temp_day = float('-inf')
+max_wind_gust_day = 0
 
 for entry in data['list']:
     # Zeitpunkt des Datensatzes
@@ -46,8 +47,10 @@ for entry in data['list']:
         elif current_day != timestamp.date():
             min_temps_per_day.append(min_temp_day)
             max_temps_per_day.append(max_temp_day)
+            max_wind_gusts_per_day.append(max_wind_gust_day)
             min_temp_day = float('inf')
             max_temp_day = float('-inf')
+            max_wind_gust_day = 0
             current_day = timestamp.date()
         
         temperature = entry['main']['temp']
@@ -66,10 +69,12 @@ for entry in data['list']:
         
         min_temp_day = min(min_temp_day, temp_min)
         max_temp_day = max(max_temp_day, temp_max)
+        max_wind_gust_day = max(max_wind_gust_day, wind_gust)
 
 # Füge die Temperaturen des letzten Tages hinzu
 min_temps_per_day.append(min_temp_day)
 max_temps_per_day.append(max_temp_day)
+max_wind_gusts_per_day.append(max_wind_gust_day)
 
 base_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric&lang=de"
 
@@ -104,7 +109,7 @@ for i in range(len(timestamps)):
 
 for i in range(len(min_temps_per_day)):
     print(f"Tag {i + 1}: Min. Temperatur: {min_temps_per_day[i]}°C, Max. Temperatur: {max_temps_per_day[i]}°C")
-
+    print(f"Max. Windböe: {max_wind_gusts_per_day[i]} m/s")
 print(f"Aktuelle Temperatur: {current_temperature}°C")
 print(f"Luftfeuchtigkeit: {current_humidity}%")
 print(f"Windgeschwindigkeit: {current_wind_speed} m/s")
