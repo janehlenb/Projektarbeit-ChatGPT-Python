@@ -5,9 +5,12 @@ from timezonefinder import TimezoneFinder
 import plotly.express as px
 import requests
 import pytz
+import locale
 from database_operations import save_to_db, most_searched_cities_db
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
+
+# TODO: Fehlermeldung bei falscher Vergleichsangabe
 
 
 def convert_timezone(timestamp, timezone):
@@ -152,16 +155,30 @@ def get_currentWeatherData():
     
     return current_temp, current_wind_speed, current_humidity, weather_description, weather_icon
 
+def get_weatherMap():
+    data = requests.get(f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}").json()
+        
+    latitude = data[0]['lat']
+    longitude = data[0]['lon']
+        
+    st.map(data={'LATITUDE': [latitude], 'LONGITUDE': [longitude]}, zoom=12)
+
 def get_table():
     # Daten bestimmen
-    daten = [date.today() + timedelta(days=i) for i in range(6)]
+    locale.setlocale(locale.LC_TIME, 'de_DE.UTF-8')
+    today = datetime.today()
+    dates = []
     
+    dates.append("Heute")
+    for i in range(1, 6):
+        dates.append((today + timedelta(days=i)).strftime('%A'))
+
     # Temperatur- und Winddaten erhalten
     min_temp, max_temp, avg_temp, avg_wind, max_gusts = get_forecastWeatherData()
     
     # Daten ausgeben
     return pd.DataFrame({
-        'Tag': daten,
+        'Tag': dates,
         'min. Temp.': convert_temp(min_temp, temp_unit),
         'max. Temp.': convert_temp(max_temp, temp_unit),
         'Ø Temp.': convert_temp(avg_temp, temp_unit),
@@ -198,7 +215,7 @@ def get_diagramms_humid_temp(type, only_tomorrow=False):
     match type:
         case 'temp':
             values = convert_temp(values, temp_unit)
-            fig = px.line(x=times, y=values, color_discrete_sequence=['red'], height=300)
+            fig = px.line(x=times, y=values, color_discrete_sequence=['#E76F51'], height=300)
             fig.update_yaxes(title_text=f'Temperatur ({temp_unit})')
             if only_tomorrow:
                 fig.update_xaxes(title_text='Uhrzeit')
@@ -207,13 +224,14 @@ def get_diagramms_humid_temp(type, only_tomorrow=False):
                 fig.update_xaxes(title_text='Datum und Uhrzeit')
                 fig.update_layout(title_text=f'5-Tage-Temperaturvorhersage für {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))  
         case 'humidity':
-            fig = px.line(x=times, y=values, color_discrete_sequence=['blue'], height=300)
+            fig = px.line(x=times, y=values, color_discrete_sequence=['#5386E4'], height=300)
             fig.update_yaxes(title_text='Luftfeuchtigkeit (%)')
             if only_tomorrow:
                 fig.update_xaxes(title_text='Uhrzeit')
                 fig.update_layout(title_text=f'Luftfeuchtigkeitsverlauf morgen in {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
             else:
                 fig.update_xaxes(title_text='Datum und Uhrzeit')
+                fig.update_layout(title_text=f'5-Tage-Luftfeuchtigkeitsvorhersage für {city}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
         
     return fig
 
@@ -236,7 +254,7 @@ def get_diagramms_states():
     labels = list(weather_counts.keys())
     values = list(weather_counts.values())
     
-    fig = px.pie(values=values, names=labels, color_discrete_sequence=px.colors.sequential.Blues_r, height=300)
+    fig = px.pie(values=values, names=labels, color_discrete_sequence=px.colors.sequential.Greens_r, height=300)
     fig.update_layout(title_text=f'Verteilung der Wetterzustände morgen in {city}')
     st.plotly_chart(fig, use_container_width=True)
 
@@ -256,16 +274,22 @@ def get_diagramms_comparison():
         temperatures.append(temperature)
         humidities.append(humidity)
     
-    fig = px.bar(x=st.session_state.cities_comparison_diagramm, y=temperatures, color_discrete_sequence=['red'], height=300)
+    fig = px.bar(x=st.session_state.cities_comparison_diagramm, y=temperatures, color_discrete_sequence=['#E76F51'], height=255)
     fig.update_xaxes(title_text='Städte')
     fig.update_yaxes(title_text=f'Temperatur ({temp_unit})')
     fig.update_layout(title_text=f'Vergleich von Temperaturen in {", ".join(st.session_state.cities_comparison_diagramm)}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
     st.plotly_chart(fig, use_container_width=True)
+    
+    fig = px.bar(x=st.session_state.cities_comparison_diagramm, y=humidities, color_discrete_sequence=['#5386E4'], height=255)
+    fig.update_xaxes(title_text='Städte')
+    fig.update_yaxes(title_text='Luftfeuchtigkeit (%)')
+    fig.update_layout(title_text=f'Vergleich von Luftfeuchtigkeiten in {", ".join(st.session_state.cities_comparison_diagramm)}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
+    st.plotly_chart(fig, use_container_width=True)
 
-st.set_page_config(page_title="Wetter App", page_icon="🌤️", layout='wide')
+st.set_page_config(page_title="WetterApp", page_icon="🌤️", layout='wide')
 st.sidebar.header("Parameter")
 
-with st.sidebar.expander("Wetterdaten auswählen", expanded=True):
+with st.sidebar.expander("**Wetterdaten auswählen**", expanded=True):
     city = st.text_input("Stadt")
     
     show_comparison = st.checkbox("Vergleich mit anderen Städten anzeigen")
@@ -276,18 +300,22 @@ with st.sidebar.expander("Wetterdaten auswählen", expanded=True):
         add_cities_comparison_diagramm = st.button("Stadt hinzufügen")
         if add_cities_comparison_diagramm:
             if city_comparison_diagramm not in st.session_state.cities_comparison_diagramm:
-                st.session_state.cities_comparison_diagramm.append(city_comparison_diagramm)
+                request_test = requests.get(f"http://api.openweathermap.org/data/2.5/weather?q={city_comparison_diagramm}&appid={API_KEY}")
+                if request_test.status_code == 200:
+                    st.session_state.cities_comparison_diagramm.append(city_comparison_diagramm)
+                #else:
+                #    st.error(f"Die Stadt **{city_comparison_diagramm}** konnte nicht gefunden werden!")
             #st.write('Städte: ' + ', '.join(st.session_state.cities_comparison_diagramm))
         
         if st.button('Vergleich zurücksetzen'):
             st.session_state.cities_comparison_diagramm = []
 
-with st.sidebar.expander("Einstellungen", expanded=True):
+with st.sidebar.expander("**Einstellungen**", expanded=True):
     timezone = st.radio("Zeitzone", ("Ortszeit", "Europa/Berlin", "UTC"))
     temp_unit = st.radio("Temperatur-Einheit", ("°C", "°F", "°K"))
     wind_unit = st.radio("Wind-Einheit", ("m/s", "km/h", "mph", "knt", "Bft"))
 
-with st.sidebar.expander("Verlauf", expanded=False):
+with st.sidebar.expander("**Verlauf**", expanded=False):
     most_searched_cities = most_searched_cities_db()
     if most_searched_cities:
         st.write("Meist gesuchte Städte:")
@@ -321,12 +349,9 @@ if city:
 
         # Wetterdaten für ausgewählte Stadt anzeigen
         st.title(f"Wetter in {city}")
+        st.caption(f"Aktualisiert um {tz_time} {tz_abbreviation}")
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader(f"Aktualisiert um {tz_time} {tz_abbreviation}")
-            st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
-            st.write(f"Aktuelle Wetterdaten ({weather_description}) :")
-            
             # AKtuelle Wetterdaten anzeigen
             col11,col12, col13 = st.columns(3)
             with col11:
@@ -336,13 +361,25 @@ if city:
             with col13:
                 metric_humidity = st.metric(label="Luftfeuchtigkeit", value=f"{current_humidity} %")
             
+            # Sonnenuntergang und Sonnenaufgang anzeigen
+            sunrise_time = datetime.fromtimestamp(DATA_BASE['sys']['sunrise'], tz=tz).strftime('%H:%M')
+            sunset_time = datetime.fromtimestamp(DATA_BASE['sys']['sunset'], tz=tz).strftime('%H:%M')
+            col11, col12, col13 = st.columns(3)
+            with col11:
+                st.write(f"{weather_description}")
+                st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
+            with col12:
+                st.metric(label="Sonnenaufgang", value=f"{sunrise_time} {tz_abbreviation}")
+            with col13:
+                st.metric(label="Sonnenuntergang", value=f"{sunset_time} {tz_abbreviation}")  
+            
             # Wetterdaten anzeigen
-            st.write("Wettervorhersage für heute und die nächsten 5 Tage:")
+            st.subheader("Wettervorhersage")
             st.dataframe(get_table(),
                         column_config={
-                            "Tag": st.column_config.DateColumn(
-                                format="DD.MM.YYYY",
-                            ),
+                            #"Tag": st.column_config.DateColumn(
+                            #    format="DD.MM.YYYY",
+                            #),
                             "min. Temp.": st.column_config.NumberColumn(
                                 format=f"%.1f {temp_unit}" if temp_unit != "°K" else f"%.2f {temp_unit}",
                             ),
@@ -363,29 +400,33 @@ if city:
                         width=600,
                         use_container_width=True
             )
-                  
-            # Sonnenuntergang und Sonnenaufgang anzeigen
-            sunrise_time = datetime.fromtimestamp(DATA_BASE['sys']['sunrise'], tz=tz).strftime('%H:%M')
-            sunset_time = datetime.fromtimestamp(DATA_BASE['sys']['sunset'], tz=tz).strftime('%H:%M')
-            col11, col12 = st.columns(2)
-            with col11:
-                st.metric(label="Sonnenaufgang heute", value=f"{sunrise_time} {tz_abbreviation}")
-            with col12:
-                st.metric(label="Sonnenuntergang heute", value=f"{sunset_time} {tz_abbreviation}")      
-
+                
+        with col2:
+            # Karte anzeigen
+            if not show_comparison:
+                get_weatherMap()
+            # Städtevergleich anzeigen
+            else:
+                if st.session_state.cities_comparison_diagramm:
+                    get_diagramms_comparison()
+                else:
+                    st.warning("Bitte fügen Sie Städte zum Vergleich hinzu!")
+            
+        st.subheader("Wetterstatistiken")
+        col1, col2 = st.columns(2)
+        with col1:
+            # Diagramm anzeigen
+            st.plotly_chart(get_diagramms_humid_temp('temp'), use_container_width=True)   
+            st.plotly_chart(get_diagramms_humid_temp('humidity'), use_container_width=True)
+            
             # Wetterzustände morgen anzeigen
             get_diagramms_states()
             
         with col2:
-            # Städtevergleich anzeigen
-            if show_comparison and st.session_state.cities_comparison_diagramm:
-                get_diagramms_comparison()
-            
             # Diagramme anzeigen
-            st.plotly_chart(get_diagramms_humid_temp('temp', only_tomorrow=True), use_container_width=True)
-            st.plotly_chart(get_diagramms_humid_temp('temp'), use_container_width=True)
+            st.plotly_chart(get_diagramms_humid_temp('temp', only_tomorrow=True), use_container_width=True) 
             st.plotly_chart(get_diagramms_humid_temp('humidity', only_tomorrow=True), use_container_width=True)
-                
+                     
     else:
         st.title("WetterApp")
         st.error(f"Die Stadt **{city}** konnte nicht gefunden werden!")
