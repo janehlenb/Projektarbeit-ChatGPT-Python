@@ -317,7 +317,7 @@ if city:
         st.title(f"Wetter in {city}")
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader(f"Aktualisiert um {timenow} {tz_timenow} ({tz_time} {tz_abbreviation})" if tz_time != timenow else f"Aktualisiert um {timenow} {tz_abbreviation}")
+            st.subheader(f"Aktualisiert um {timenow} {tz_timenow} ({tz_time} {tz_abbreviation})" if tz_timenow != tz_abbreviation else f"Aktualisiert um {timenow} {tz_abbreviation}")
             st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
             st.write(f"Aktuelle Wetterdaten ({weather_description}) :")
             
