@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, timedelta, datetime
+from timezonefinder import TimezoneFinder
 import plotly.express as px
 import requests
 import pytz
-from timezonefinder import TimezoneFinder
+from database_operations import save_to_db, most_searched_cities_db
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
 
@@ -268,30 +269,55 @@ with st.sidebar.expander("Wetterdaten auswählen", expanded=True):
                 st.session_state.cities_comparison_diagramm.append(city_comparison_diagramm)
             #st.write('Städte: ' + ', '.join(st.session_state.cities_comparison_diagramm))
         
-        if st.button('Liste zurücksetzen'):
+        if st.button('Vergleich zurücksetzen'):
             st.session_state.cities_comparison_diagramm = []
 
 with st.sidebar.expander("Einstellungen", expanded=True):
     temp_unit = st.radio("Temperatur-Einheit", ("°C", "°F", "°K"))
     wind_unit = st.radio("Wind-Einheit", ("m/s", "km/h", "mph", "knt", "Bft"))
-  
 
-#if chose_city:
+with st.sidebar.expander("Verlauf", expanded=False):
+    most_searched_cities = most_searched_cities_db()
+    if most_searched_cities:
+        st.write("Meist gesuchte Städte:")
+        i = 1
+        for searched_city in most_searched_cities:
+            st.write(f"{i}. {searched_city}")
+            i += 1
+    
+    clear_most_searched_cities = st.button("Liste zurücksetzen")
+    if clear_most_searched_cities:
+        print("Liste zurücksetzen PLACEHOLDER")
+
 if city:
     URL_BASE = f'http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric&lang=de'
     URL_FORECAST = f'http://api.openweathermap.org/data/2.5/forecast?q={city}&units=metric&lang=de&appid={API_KEY}'
     # Aktuelle Wetterdaten von API abrufen und testen ob Stadt verfügbar ist
     response = requests.get(URL_BASE)
     if response.status_code == 200:
+        # Stadt in Datenbank speichern
+        save_to_db(city)
+        
+        # Aktuelle Wetterdaten von API abrufen
         DATA_BASE = response.json()
         current_temp, current_wind_speed, current_humidity, weather_description, weather_icon = get_currentWeatherData()
         
         # Forecast-Wetterdaten von API abrufen
         DATA_FORECAST = requests.get(URL_FORECAST).json()
         
+        # Zeitzone der Stadt bestimmen
+        tz = pytz.timezone(TimezoneFinder().timezone_at(lng=DATA_BASE['coord']['lon'], lat=DATA_BASE['coord']['lat']))
+        tz_abbreviation = tz.tzname(datetime.utcnow())
+        tz_time = datetime.fromtimestamp(DATA_BASE['dt'], tz=tz).strftime('%H:%M')
+        # Aktuelle Zeit in Europe/Berlin bestimmen
+        timenow = datetime.fromtimestamp(DATA_BASE['dt']).strftime('%H:%M')
+        tz_timenow = pytz.timezone(TimezoneFinder().timezone_at(lng=8.901750, lat=52.033390)).tzname(datetime.utcnow())
+        
+        # Wetterdaten für ausgewählte Stadt anzeigen
         st.title(f"Wetter in {city}")
         col1, col2 = st.columns(2)
         with col1:
+            st.subheader(f"Aktualisiert um {timenow} {tz_timenow} ({tz_time} {tz_abbreviation})" if tz_time != timenow else f"Aktualisiert um {timenow} {tz_abbreviation}")
             st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
             st.write(f"Aktuelle Wetterdaten ({weather_description}) :")
             
@@ -305,6 +331,7 @@ if city:
                 metric_humidity = st.metric(label="Luftfeuchtigkeit", value=f"{current_humidity} %")
             
             # Wetterdaten anzeigen
+            st.write("Wettervorhersage für heute und die nächsten 5 Tage:")
             st.dataframe(get_table(),
                         column_config={
                             "Tag": st.column_config.DateColumn(
@@ -332,16 +359,13 @@ if city:
             )
                   
             # Sonnenuntergang und Sonnenaufgang anzeigen
-            obj = TimezoneFinder()
-            tz = pytz.timezone(obj.timezone_at(lng=DATA_BASE['coord']['lon'], lat=DATA_BASE['coord']['lat']))
-            tz_abbreviation = tz.tzname(datetime.utcnow())
             sunrise_time = datetime.fromtimestamp(DATA_BASE['sys']['sunrise'], tz=tz).strftime('%H:%M')
             sunset_time = datetime.fromtimestamp(DATA_BASE['sys']['sunset'], tz=tz).strftime('%H:%M')
             col11, col12 = st.columns(2)
             with col11:
-                st.metric(label="Sonnenaufgang", value=f"{sunrise_time} {tz_abbreviation}")
+                st.metric(label="Sonnenaufgang heute", value=f"{sunrise_time} {tz_abbreviation}")
             with col12:
-                st.metric(label="Sonnenuntergang", value=f"{sunset_time} {tz_abbreviation}")      
+                st.metric(label="Sonnenuntergang heute", value=f"{sunset_time} {tz_abbreviation}")      
 
             # Wetterzustände morgen anzeigen
             get_diagramms_states()
@@ -352,9 +376,9 @@ if city:
                 get_diagramms_comparison()
             
             # Diagramme anzeigen
-            st.plotly_chart(get_diagramms_humid_temp('humidity', only_tomorrow=True), use_container_width=True)
             st.plotly_chart(get_diagramms_humid_temp('temp', only_tomorrow=True), use_container_width=True)
             st.plotly_chart(get_diagramms_humid_temp('temp'), use_container_width=True)
+            st.plotly_chart(get_diagramms_humid_temp('humidity', only_tomorrow=True), use_container_width=True)
                 
     else:
         st.title("WetterApp")
