@@ -10,6 +10,16 @@ from database_operations import save_to_db, most_searched_cities_db
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
 
 
+def convert_timezone(timestamp, timezone):
+    dt = datetime.fromtimestamp(timestamp)
+    if timezone == "Ortszeit":
+        tz = pytz.timezone(TimezoneFinder().timezone_at(lng=DATA_BASE['coord']['lon'], lat=DATA_BASE['coord']['lat']))
+        return tz, datetime.fromtimestamp(timestamp, tz=tz).strftime("%H:%M"), tz.tzname(datetime.utcnow())
+    elif timezone == "Europa/Berlin":
+        return pytz.timezone('Europe/Berlin'), datetime.fromtimestamp(timestamp, tz=pytz.timezone('Europe/Berlin')).strftime("%H:%M"), pytz.timezone('Europe/Berlin').tzname(datetime.utcnow())
+    elif timezone == "UTC":
+        return pytz.timezone('UTC'), datetime.fromtimestamp(timestamp, tz=pytz.timezone('UTC')).strftime("%H:%M"), pytz.timezone('UTC').tzname(datetime.utcnow())
+
 def convert_temp(temperatures, target_unit):
     match target_unit:
         case "°C":
@@ -273,6 +283,7 @@ with st.sidebar.expander("Wetterdaten auswählen", expanded=True):
             st.session_state.cities_comparison_diagramm = []
 
 with st.sidebar.expander("Einstellungen", expanded=True):
+    timezone = st.radio("Zeitzone", ("Ortszeit", "Europa/Berlin", "UTC"))
     temp_unit = st.radio("Temperatur-Einheit", ("°C", "°F", "°K"))
     wind_unit = st.radio("Wind-Einheit", ("m/s", "km/h", "mph", "knt", "Bft"))
 
@@ -306,19 +317,13 @@ if city:
         DATA_FORECAST = requests.get(URL_FORECAST).json()
         
         # Zeitzone der Stadt bestimmen
-        tz = pytz.timezone(TimezoneFinder().timezone_at(lng=DATA_BASE['coord']['lon'], lat=DATA_BASE['coord']['lat']))
-        tz_abbreviation = tz.tzname(datetime.utcnow())
-        tz_time = datetime.fromtimestamp(DATA_BASE['dt'], tz=tz).strftime('%H:%M')
-        # Aktuelle Zeit in Europe/Berlin bestimmen
-        tz_timenow = pytz.timezone('Europe/Berlin')
-        tz_timenow_abbreviation = pytz.timezone('Europe/Berlin').tzname(datetime.utcnow())
-        timenow = datetime.fromtimestamp(DATA_BASE['dt'], tz=tz_timenow).strftime('%H:%M')
-        
+        tz, tz_time, tz_abbreviation = convert_timezone(DATA_BASE['dt'], timezone)
+
         # Wetterdaten für ausgewählte Stadt anzeigen
         st.title(f"Wetter in {city}")
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader(f"Aktualisiert um {timenow} {tz_timenow_abbreviation} ({tz_time} {tz_abbreviation})" if tz_timenow_abbreviation != tz_abbreviation else f"Aktualisiert um {timenow} {tz_abbreviation}")
+            st.subheader(f"Aktualisiert um {tz_time} {tz_abbreviation}")
             st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
             st.write(f"Aktuelle Wetterdaten ({weather_description}) :")
             
