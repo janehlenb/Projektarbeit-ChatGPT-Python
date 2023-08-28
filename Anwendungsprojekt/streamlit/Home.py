@@ -1,14 +1,11 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 from datetime import date, timedelta, datetime
 import plotly.express as px
 import requests
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
 
-# TODO: Daten in Tabelle einfügen (Durchschnittswerte)
-# TODO: temp_unit in Vergleich-Diagramm anpassen bei Änderung
 
 def convert_temp(temperatures, target_unit):
     match target_unit:
@@ -59,7 +56,7 @@ def convert_wind_speed(wind_speeds_mps, target_unit):
                 
             return bft_speeds
 
-def get_forecastWeatherData(data_forecast):
+def get_forecastWeatherData():
     today = datetime.now()
     temp_mins = []
     temp_maxs = []
@@ -67,13 +64,17 @@ def get_forecastWeatherData(data_forecast):
     min_temps_per_day = []
     max_temps_per_day = []
     max_wind_gusts_per_day = []
+    avg_temps = []
+    avg_winds = []
     
     current_day = None
     min_temp_day = float('inf')
     max_temp_day = float('-inf')
     max_wind_gust_day = 0
+    per_day_counter = 0
+    day_counter = 0
     
-    for entry in data_forecast['list']:
+    for entry in DATA_FORECAST['list']:
     # Zeitpunkt des Datensatzes
         timestamp = datetime.fromtimestamp(entry['dt'])
     
@@ -81,6 +82,9 @@ def get_forecastWeatherData(data_forecast):
         if today.date() <= timestamp.date() <= today.date() + timedelta(days=5):
             if current_day is None:
                 current_day = timestamp.date()
+                per_day_counter = 0
+                avg_temps.append(0)
+                avg_winds.append(0)
             elif current_day != timestamp.date():
                 min_temps_per_day.append(min_temp_day)
                 max_temps_per_day.append(max_temp_day)
@@ -88,10 +92,18 @@ def get_forecastWeatherData(data_forecast):
                 min_temp_day = float('inf')
                 max_temp_day = float('-inf')
                 max_wind_gust_day = 0
+                avg_temps[day_counter] = avg_temps[day_counter] / per_day_counter
+                avg_winds[day_counter] = avg_winds[day_counter] / per_day_counter
                 current_day = timestamp.date()
+                day_counter += 1
+                per_day_counter = 0
+                avg_temps.append(0)
+                avg_winds.append(0)
             
+            temperature = entry['main']['temp']
             temp_min = entry['main']['temp_min']
             temp_max = entry['main']['temp_max']
+            wind_speed = entry['wind']['speed']
             wind_gust = entry['wind'].get('gust', 0)  # gust ist nicht immer vorhanden
             
             temp_mins.append(temp_min)
@@ -101,40 +113,29 @@ def get_forecastWeatherData(data_forecast):
             min_temp_day = min(min_temp_day, temp_min)
             max_temp_day = max(max_temp_day, temp_max)
             max_wind_gust_day = max(max_wind_gust_day, wind_gust)
+            
+            avg_temps[day_counter] += temperature
+            avg_winds[day_counter] += wind_speed
+            per_day_counter += 1
+
+    avg_temps[day_counter] = avg_temps[day_counter] / per_day_counter
+    avg_winds[day_counter] = avg_winds[day_counter] / per_day_counter
 
     # Füge die Temperaturen des letzten Tages hinzu
     min_temps_per_day.append(min_temp_day)
     max_temps_per_day.append(max_temp_day)
     max_wind_gusts_per_day.append(max_wind_gust_day)
-    
-    # avg_temps berechnen
-    # ...
-    
-    # avg_winds berechnen
-    # ...
-    
-    # PLACEHOLDER
-    avg_temps = [np.random.randint(0, 15) for _ in range(6)]
-    avg_winds = [np.random.randint(0, 15) for _ in range(6)]
-    
+  
     return min_temps_per_day, max_temps_per_day, avg_temps, avg_winds, max_wind_gusts_per_day
 
-def get_weatherMap():
-    data = requests.get(f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}").json()
-        
-    latitude = data[0]['lat']
-    longitude = data[0]['lon']
-        
-    st.map(data={'LATITUDE': [latitude], 'LONGITUDE': [longitude]}, zoom=12)
-
-def get_currentWeatherData(data_base):
-    current_temp = data_base['main']['temp']
+def get_currentWeatherData():
+    current_temp = DATA_BASE['main']['temp']
     current_temp = convert_temp([current_temp], temp_unit)[0]
-    current_wind_speed = data_base['wind']['speed']
+    current_wind_speed = DATA_BASE['wind']['speed']
     current_wind_speed = convert_wind_speed([current_wind_speed], wind_unit)[0]
-    current_humidity = data_base['main']['humidity']  # Extract humidity
-    weather_description = data_base['weather'][0]['description']  # Extract weather description
-    weather_icon = data_base['weather'][0]['icon']
+    current_humidity = DATA_BASE['main']['humidity']  # Extract humidity
+    weather_description = DATA_BASE['weather'][0]['description']  # Extract weather description
+    weather_icon = DATA_BASE['weather'][0]['icon']
     
     return current_temp, current_wind_speed, current_humidity, weather_description, weather_icon
 
@@ -143,7 +144,7 @@ def get_table():
     daten = [date.today() + timedelta(days=i) for i in range(6)]
     
     # Temperatur- und Winddaten erhalten
-    min_temp, max_temp, avg_temp, avg_wind, max_gusts = get_forecastWeatherData(data_forecast)
+    min_temp, max_temp, avg_temp, avg_wind, max_gusts = get_forecastWeatherData()
     
     # Daten ausgeben
     return pd.DataFrame({
@@ -155,7 +156,7 @@ def get_table():
         'max. Böen': convert_wind_speed(max_gusts, wind_unit),
     })
 
-def get_diagramms_humid_temp(type, data_forecast, only_tomorrow=False):
+def get_diagramms_humid_temp(type, only_tomorrow=False):
     if only_tomorrow:
         tomorrow = (datetime.now() + timedelta(days=1)).date()
         api_data = []
@@ -163,7 +164,7 @@ def get_diagramms_humid_temp(type, data_forecast, only_tomorrow=False):
         times = []
         values = []
     
-    for entry in data_forecast['list']:
+    for entry in DATA_FORECAST['list']:
         timestamp = entry['dt']
         if only_tomorrow:
             entry_date = datetime.utcfromtimestamp(timestamp).date()
@@ -203,11 +204,11 @@ def get_diagramms_humid_temp(type, data_forecast, only_tomorrow=False):
         
     return fig
 
-def get_diagramms_states(data_forecast):
+def get_diagramms_states():
     tomorrow = (datetime.now() + timedelta(days=1)).date()
     weather_counts = {}
     
-    for entry in data_forecast['list']:
+    for entry in DATA_FORECAST['list']:
         timestamp = entry['dt']
         entry_date = datetime.utcfromtimestamp(timestamp).date()
 
@@ -236,7 +237,7 @@ def get_diagramms_comparison():
         url = url_base.format(city, API_KEY)
         data = requests.get(url).json()
         temperature = data['main']['temp']
-        #temperature = convert_temp([temperature], temp_unit)[0]
+        temperature = convert_temp([temperature], temp_unit)[0]
         humidity = data['main']['humidity']
     
         temperatures.append(temperature)
@@ -245,7 +246,7 @@ def get_diagramms_comparison():
     fig = px.bar(x=st.session_state.cities_comparison_diagramm, y=temperatures, color_discrete_sequence=['red'], height=300)
     fig.update_xaxes(title_text='Städte')
     fig.update_yaxes(title_text=f'Temperatur ({temp_unit})')
-    fig.update_layout(title_text=f'Vergleich von Temperatur')
+    fig.update_layout(title_text=f'Vergleich von Temperaturen in {", ".join(st.session_state.cities_comparison_diagramm)}', xaxis=dict(showgrid=True), yaxis=dict(showgrid=True))
     st.plotly_chart(fig, use_container_width=True)
 
 st.set_page_config(page_title="Wetter App", page_icon="🌤️", layout='wide')
@@ -258,9 +259,11 @@ with st.sidebar.expander("Wetterdaten auswählen", expanded=True):
     if 'cities_comparison_diagramm' not in st.session_state:
         st.session_state.cities_comparison_diagramm = []
     if show_comparison:
-        add_cities_comparison_diagramm = st.text_input("Stadt zum Vergleich hinzufügen")
+        city_comparison_diagramm = st.text_input("Stadt zum Vergleich hinzufügen")
+        add_cities_comparison_diagramm = st.button("Stadt hinzufügen")
         if add_cities_comparison_diagramm:
-            st.session_state.cities_comparison_diagramm.append(add_cities_comparison_diagramm)
+            if city_comparison_diagramm not in st.session_state.cities_comparison_diagramm:
+                st.session_state.cities_comparison_diagramm.append(city_comparison_diagramm)
             #st.write('Städte: ' + ', '.join(st.session_state.cities_comparison_diagramm))
         
         if st.button('Liste zurücksetzen'):
@@ -278,25 +281,19 @@ if city:
     # Aktuelle Wetterdaten von API abrufen und testen ob Stadt verfügbar ist
     response = requests.get(URL_BASE)
     if response.status_code == 200:
-        data_base = response.json()
-        current_temp, current_wind_speed, current_humidity, weather_description, weather_icon = get_currentWeatherData(data_base)
+        DATA_BASE = response.json()
+        current_temp, current_wind_speed, current_humidity, weather_description, weather_icon = get_currentWeatherData()
         
         # Forecast-Wetterdaten von API abrufen
-        data_forecast = requests.get(URL_FORECAST).json()
+        DATA_FORECAST = requests.get(URL_FORECAST).json()
         
         st.title(f"Wetter in {city}")
         col1, col2 = st.columns(2)
         with col1:
-            #col11, col12 = st.columns(2)
-            #with col11:
-            #    # Karte anzeigen
-            #    get_weatherMap()
-            #with col12:
-            #    st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
-            #    st.write(weather_description)
             st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
-            
             st.write(f"Aktuelle Wetterdaten ({weather_description}) :")
+            
+            # AKtuelle Wetterdaten anzeigen
             col11,col12, col13 = st.columns(3)
             with col11:
                 metric_temp = st.metric(label="Temperatur", value=f"{current_temp:.1f} {temp_unit}" if temp_unit != "°K" else f"{current_temp:.2f} {temp_unit}")
@@ -333,9 +330,8 @@ if city:
             )
                   
             # Sonnenuntergang und Sonnenaufgang anzeigen
-            sunrise_time = datetime.fromtimestamp(data_base['sys']['sunrise']).strftime('%H:%M')
-            sunset_time = datetime.fromtimestamp(data_base['sys']['sunset']).strftime('%H:%M')
-            
+            sunrise_time = datetime.fromtimestamp(DATA_BASE['sys']['sunrise']).strftime('%H:%M')
+            sunset_time = datetime.fromtimestamp(DATA_BASE['sys']['sunset']).strftime('%H:%M')
             col11, col12 = st.columns(2)
             with col11:
                 st.metric(label="Sonnenaufgang", value=f"{sunrise_time} MESZ")
@@ -343,16 +339,17 @@ if city:
                 st.metric(label="Sonnenuntergang", value=f"{sunset_time} MESZ")      
 
             # Wetterzustände morgen anzeigen
-            get_diagramms_states(data_forecast)
+            get_diagramms_states()
             
         with col2:
-            # Diagramme anzeigen
-            st.plotly_chart(get_diagramms_humid_temp('humidity', data_forecast, only_tomorrow=True), use_container_width=True)
-            st.plotly_chart(get_diagramms_humid_temp('temp', data_forecast, only_tomorrow=True), use_container_width=True)
-            st.plotly_chart(get_diagramms_humid_temp('temp', data_forecast), use_container_width=True)
-            
+            # Städtevergleich anzeigen
             if show_comparison and st.session_state.cities_comparison_diagramm:
-                get_diagramms_comparison() 
+                get_diagramms_comparison()
+            
+            # Diagramme anzeigen
+            st.plotly_chart(get_diagramms_humid_temp('humidity', only_tomorrow=True), use_container_width=True)
+            st.plotly_chart(get_diagramms_humid_temp('temp', only_tomorrow=True), use_container_width=True)
+            st.plotly_chart(get_diagramms_humid_temp('temp'), use_container_width=True)
                 
     else:
         st.title("WetterApp")
