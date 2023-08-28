@@ -310,14 +310,15 @@ if city:
         tz_abbreviation = tz.tzname(datetime.utcnow())
         tz_time = datetime.fromtimestamp(DATA_BASE['dt'], tz=tz).strftime('%H:%M')
         # Aktuelle Zeit in Europe/Berlin bestimmen
-        timenow = datetime.fromtimestamp(DATA_BASE['dt']).strftime('%H:%M')
-        tz_timenow = pytz.timezone(TimezoneFinder().timezone_at(lng=8.901750, lat=52.033390)).tzname(datetime.utcnow())
+        tz_timenow = pytz.timezone('Europe/Berlin')
+        tz_timenow_abbreviation = pytz.timezone('Europe/Berlin').tzname(datetime.utcnow())
+        timenow = datetime.fromtimestamp(DATA_BASE['dt'], tz=tz_timenow).strftime('%H:%M')
         
         # Wetterdaten für ausgewählte Stadt anzeigen
         st.title(f"Wetter in {city}")
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader(f"Aktualisiert um {timenow} {tz_timenow} ({tz_time} {tz_abbreviation})" if tz_timenow != tz_abbreviation else f"Aktualisiert um {timenow} {tz_abbreviation}")
+            st.subheader(f"Aktualisiert um {timenow} {tz_timenow_abbreviation} ({tz_time} {tz_abbreviation})" if tz_timenow_abbreviation != tz_abbreviation else f"Aktualisiert um {timenow} {tz_abbreviation}")
             st.image(f"http://openweathermap.org/img/w/{weather_icon}.png")
             st.write(f"Aktuelle Wetterdaten ({weather_description}) :")
             
