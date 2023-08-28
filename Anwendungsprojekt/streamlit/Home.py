@@ -3,6 +3,8 @@ import pandas as pd
 from datetime import date, timedelta, datetime
 import plotly.express as px
 import requests
+import pytz
+from timezonefinder import TimezoneFinder
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
 
@@ -330,13 +332,16 @@ if city:
             )
                   
             # Sonnenuntergang und Sonnenaufgang anzeigen
-            sunrise_time = datetime.fromtimestamp(DATA_BASE['sys']['sunrise']).strftime('%H:%M')
-            sunset_time = datetime.fromtimestamp(DATA_BASE['sys']['sunset']).strftime('%H:%M')
+            obj = TimezoneFinder()
+            tz = pytz.timezone(obj.timezone_at(lng=DATA_BASE['coord']['lon'], lat=DATA_BASE['coord']['lat']))
+            tz_abbreviation = tz.tzname(datetime.utcnow())
+            sunrise_time = datetime.fromtimestamp(DATA_BASE['sys']['sunrise'], tz=tz).strftime('%H:%M')
+            sunset_time = datetime.fromtimestamp(DATA_BASE['sys']['sunset'], tz=tz).strftime('%H:%M')
             col11, col12 = st.columns(2)
             with col11:
-                st.metric(label="Sonnenaufgang", value=f"{sunrise_time} MESZ")
+                st.metric(label="Sonnenaufgang", value=f"{sunrise_time} {tz_abbreviation}")
             with col12:
-                st.metric(label="Sonnenuntergang", value=f"{sunset_time} MESZ")      
+                st.metric(label="Sonnenuntergang", value=f"{sunset_time} {tz_abbreviation}")      
 
             # Wetterzustände morgen anzeigen
             get_diagramms_states()
