@@ -21,6 +21,8 @@ min_temps_per_day = []
 max_temps_per_day = []
 icon_urls_per_day = []
 max_wind_gusts_per_day = []
+temp_avgr = []
+wind_speeds_avgr = []
 
 
 # Heutiges Datum
@@ -35,6 +37,8 @@ current_day = None
 min_temp_day = float('inf')
 max_temp_day = float('-inf')
 max_wind_gust_day = 0
+per_day_counter = 0;
+day_counter = 0
 
 for entry in data['list']:
     # Zeitpunkt des Datensatzes
@@ -44,6 +48,9 @@ for entry in data['list']:
     if today.date() <= timestamp.date() <= today.date() + datetime.timedelta(days=4):
         if current_day is None:
             current_day = timestamp.date()
+            per_day_counter = 0
+            temp_avgr.append(0)
+            wind_speeds_avgr.append(0)
         elif current_day != timestamp.date():
             min_temps_per_day.append(min_temp_day)
             max_temps_per_day.append(max_temp_day)
@@ -51,7 +58,13 @@ for entry in data['list']:
             min_temp_day = float('inf')
             max_temp_day = float('-inf')
             max_wind_gust_day = 0
+            temp_avgr[day_counter] = temp_avgr[day_counter] / per_day_counter
+            wind_speeds_avgr[day_counter] = wind_speeds_avgr[day_counter] / per_day_counter
             current_day = timestamp.date()
+            day_counter += 1
+            per_day_counter = 0
+            temp_avgr.append(0)
+            wind_speeds_avgr.append(0)
         
         temperature = entry['main']['temp']
         temp_min = entry['main']['temp_min']
@@ -70,6 +83,13 @@ for entry in data['list']:
         min_temp_day = min(min_temp_day, temp_min)
         max_temp_day = max(max_temp_day, temp_max)
         max_wind_gust_day = max(max_wind_gust_day, wind_gust)
+
+        temp_avgr[day_counter] += temperature
+        wind_speeds_avgr[day_counter] += wind_speed
+        per_day_counter += 1
+
+temp_avgr[day_counter] = temp_avgr[day_counter] / per_day_counter
+wind_speeds_avgr[day_counter] = wind_speeds_avgr[day_counter] / per_day_counter
 
 # Füge die Temperaturen des letzten Tages hinzu
 min_temps_per_day.append(min_temp_day)
@@ -108,8 +128,8 @@ for i in range(len(timestamps)):
     print("-------------------------------")
 
 for i in range(len(min_temps_per_day)):
-    print(f"Tag {i + 1}: Min. Temperatur: {min_temps_per_day[i]}°C, Max. Temperatur: {max_temps_per_day[i]}°C")
-    print(f"Max. Windböe: {max_wind_gusts_per_day[i]} m/s")
+    print(f"Tag {i + 1}:\n\tMin. Temperatur: {min_temps_per_day[i]}°C, Max. Temperatur: {max_temps_per_day[i]}°C, Avrg. Temperatur: {temp_avgr[i]}°C")
+    print(f"\tMax. Windböe: {max_wind_gusts_per_day[i]} m/s, Avrg. Windböe: {wind_speeds_avgr[i]} m/s")
 print(f"Aktuelle Temperatur: {current_temperature}°C")
 print(f"Luftfeuchtigkeit: {current_humidity}%")
 print(f"Windgeschwindigkeit: {current_wind_speed} m/s")

@@ -27,7 +27,7 @@ def most_searched_cities_csv():
         for row in reader:
             city = row[0]
             cities[city] = cities.get(city, 0) + 1
-    
+
     return sorted(cities, key=cities.get, reverse=True)[:3]
 
 def most_searched_cities_yaml():
