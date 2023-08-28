@@ -165,7 +165,7 @@ def get_weatherMap():
 
 def get_table():
     # Daten bestimmen
-    locale.setlocale(locale.LC_ALL, 'de_DE.UTF-8')
+    locale.setlocale(locale.LC_ALL, "de_DE")
     today = datetime.today()
     dates = []
     
