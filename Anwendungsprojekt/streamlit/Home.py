@@ -325,8 +325,10 @@ with st.sidebar.expander("**Verlauf**", expanded=False):
             i += 1
     
     clear_most_searched_cities = st.button("Liste zurücksetzen")
-    if clear_most_searched_cities:
-        print("Liste zurücksetzen PLACEHOLDER")
+if clear_most_searched_cities:
+    clear_most_searched_cities_db()
+    st.write("Meistgesuchte Städte Liste wurde zurückgesetzt.")
+
 
 if city:
     URL_BASE = f'http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric&lang=de'
