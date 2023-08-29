@@ -40,6 +40,7 @@ def clear_most_searched_cities_db():
     ''')
     conn.commit()
     conn.close()
+    most_searched_cities_db()
 
 
 
