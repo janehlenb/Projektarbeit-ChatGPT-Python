@@ -1,12 +1,13 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, timedelta, datetime
+from datetime import timedelta, datetime
 from timezonefinder import TimezoneFinder
 import plotly.express as px
+import time
 import requests
 import pytz
 import locale
-from database_operations import *
+from database_operations import save_to_db, most_searched_cities_db, clear_most_searched_cities_db
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
 
@@ -287,11 +288,12 @@ def get_diagramms_comparison():
     st.plotly_chart(fig, use_container_width=True)
 
 st.set_page_config(page_title="WetterApp", page_icon="🌤️", layout='wide')
-st.sidebar.header("Parameter")
+st.sidebar.header("Einstellungen")
 
 with st.sidebar.expander("**Wetterdaten auswählen**", expanded=True):
     city = st.text_input("Stadt")
     
+    # Vergleich mit anderen Städten
     show_comparison = st.checkbox("Vergleich mit anderen Städten anzeigen")
     if 'cities_comparison_diagramm' not in st.session_state:
         st.session_state.cities_comparison_diagramm = []
@@ -303,14 +305,15 @@ with st.sidebar.expander("**Wetterdaten auswählen**", expanded=True):
                 request_test = requests.get(f"http://api.openweathermap.org/data/2.5/weather?q={city_comparison_diagramm}&appid={API_KEY}")
                 if request_test.status_code == 200:
                     st.session_state.cities_comparison_diagramm.append(city_comparison_diagramm)
-                #else:
-                #    st.error(f"Die Stadt **{city_comparison_diagramm}** konnte nicht gefunden werden!")
-            #st.write('Städte: ' + ', '.join(st.session_state.cities_comparison_diagramm))
+                else:
+                    unknow_city_error = st.error(f"Die Stadt **{city_comparison_diagramm}** konnte nicht gefunden werden!")
+                    time.sleep(2)
+                    unknow_city_error.empty()
         
         if st.button('Vergleich zurücksetzen'):
             st.session_state.cities_comparison_diagramm = []
 
-with st.sidebar.expander("**Einstellungen**", expanded=True):
+with st.sidebar.expander("**Einheiten**", expanded=True):
     timezone = st.radio("Zeitzone", ("Ortszeit", "Europa/Berlin", "UTC"))
     temp_unit = st.radio("Temperatur-Einheit", ("°C", "°F", "°K"))
     wind_unit = st.radio("Wind-Einheit", ("m/s", "km/h", "mph", "knt", "Bft"))
@@ -327,8 +330,6 @@ with st.sidebar.expander("**Verlauf**", expanded=False):
     clear_most_searched_cities = st.button("Liste zurücksetzen")
     if clear_most_searched_cities:
         clear_most_searched_cities_db()
-        st.write("Meistgesuchte Städte Liste wurde zurückgesetzt.")
-
 
 if city:
     URL_BASE = f'http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric&lang=de'
