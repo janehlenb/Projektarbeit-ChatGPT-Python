@@ -6,7 +6,7 @@ import plotly.express as px
 import requests
 import pytz
 import locale
-from database_operations import save_to_db, most_searched_cities_db
+import database_operations
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
 
