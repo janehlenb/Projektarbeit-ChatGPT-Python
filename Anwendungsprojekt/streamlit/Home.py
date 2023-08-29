@@ -422,7 +422,7 @@ elif city_valid:
         match choose_comparison:
             # Karte anzeigen ohne Vergleich
             case "Kein Vergleich":
-                get_weatherMap()
+                st.map(data={'LATITUDE': [DATA_BASE['coord']['lat']], 'LONGITUDE': [DATA_BASE['coord']['lon']]}, zoom=12)
             # Vergleich zwischen gewählten Städten
             case "Verschiedene Städte":
                 if len(st.session_state.cities_comparison_diagramm) == 0:
