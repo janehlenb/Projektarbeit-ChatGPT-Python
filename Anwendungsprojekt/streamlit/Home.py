@@ -163,10 +163,10 @@ def get_currentWeatherData():
 
 def get_weatherMap():
     data = requests.get(f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}").json()
-        
+
     latitude = data[0]['lat']
     longitude = data[0]['lon']
-        
+
     st.map(data={'LATITUDE': [latitude], 'LONGITUDE': [longitude]}, zoom=12)
 
 def get_table():
@@ -418,12 +418,23 @@ elif city_valid:
                     use_container_width=True
         )      
     with col2:
-        # Karte anzeigen
-        if not st.session_state.cities_comparison_diagramm:
-            get_weatherMap()
-        # Städtevergleich anzeigen
-        else:
-            get_diagramms_comparison()
+        # Karte oder Vergleich anzeigen
+        match choose_comparison:
+            # Karte anzeigen ohne Vergleich
+            case "Kein Vergleich":
+                get_weatherMap()
+            # Vergleich zwischen gewählten Städten
+            case "Verschiedene Städte":
+                if len(st.session_state.cities_comparison_diagramm) == 0:
+                    st.warning("Bitte fügen Sie links Städte zum Vergleich hinzu!")
+                else:
+                    get_diagramms_comparison()
+            # Vergleich zwischen meist gesuchten Städten
+            case "Meist gesuchte Städte":
+                if len(st.session_state.cities_comparison_diagramm) == 0:
+                    st.warning("Die Liste der meist gesuchten Städte ist leer!")
+                else:
+                    get_diagramms_comparison()
         
     st.subheader("Wetterstatistiken")
     col1, col2 = st.columns(2)
