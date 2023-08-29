@@ -7,6 +7,8 @@ import time
 import requests
 import pytz
 import locale
+import folium
+from streamlit_folium import st_folium
 from database_operations import save_to_db, most_searched_cities_db, clear_most_searched_cities_db
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
@@ -167,7 +169,9 @@ def get_weatherMap():
     latitude = data[0]['lat']
     longitude = data[0]['lon']
 
-    st.map(data={'LATITUDE': [latitude], 'LONGITUDE': [longitude]}, zoom=12)
+    map = folium.Map(location=[latitude, longitude], zoom_start=12)
+    folium.Marker([latitude, longitude], popup=city).add_to(map)
+    st_folium(map, height=500, use_container_width=True)
 
 def get_table():
     # Temperatur- und Winddaten erhalten
@@ -422,7 +426,7 @@ elif city_valid:
         match choose_comparison:
             # Karte anzeigen ohne Vergleich
             case "Kein Vergleich":
-                st.map(data={'LATITUDE': [DATA_BASE['coord']['lat']], 'LONGITUDE': [DATA_BASE['coord']['lon']]}, zoom=12)
+                get_weatherMap()
             # Vergleich zwischen gewählten Städten
             case "Verschiedene Städte":
                 if len(st.session_state.cities_comparison_diagramm) == 0:
