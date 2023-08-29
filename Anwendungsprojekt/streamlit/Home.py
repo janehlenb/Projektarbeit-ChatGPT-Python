@@ -6,7 +6,7 @@ import plotly.express as px
 import requests
 import pytz
 import locale
-import all from database_operations
+from database_operations import *
 
 API_KEY = '8458a13ebaeba1acef15ef61c32b8d4e'
 
