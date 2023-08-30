@@ -4,4 +4,4 @@
 
 ## Zum Python Tutorial (Wiki)
 
-[[Tutorial](https://github.com/janehlenb/Projektarbeit-ChatGPT-Python/wiki)
+[Tutorial](https://github.com/janehlenb/Projektarbeit-ChatGPT-Python/wiki)
