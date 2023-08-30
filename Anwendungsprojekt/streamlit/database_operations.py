@@ -31,3 +31,16 @@ def most_searched_cities_db(limit=3):
     conn.close()
     
     return [row[0] for row in rows]
+
+def clear_most_searched_cities_db():
+    conn = connect_to_database()  # Verbindung zur Datenbank herstellen
+    cursor = conn.cursor()
+    cursor.execute('''
+        DELETE FROM cities
+    ''')
+    conn.commit()
+    conn.close()
+    most_searched_cities_db()
+
+
+
